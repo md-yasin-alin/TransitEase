@@ -1,0 +1,211 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Register | TransitEase</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    integrity="sha512-rbF2FdI8CJYB7IYjIPt4Ej1i+KN9w+H2s3Sw+mQU/Im4rUS+nB+Mff8gR0H+KltCGFlVku13kFJ8Pb22sKpL9w=="
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to right, #f2f4f7, #e0ecff);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      animation: fadeIn 0.7s ease-in-out;
+      position: relative;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Title fixed top-left */
+    .fixed-title {
+      position: fixed;
+      top: 25px;
+      left: 30px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 48px;
+      font-weight: 900;
+      color: #223a5f;
+      user-select: none;
+      z-index: 1000;
+    }
+
+    .fixed-title i {
+      color: #2ecc71;
+      font-size: 56px;
+      animation: rotateLogo 3s linear infinite;
+    }
+
+    @keyframes rotateLogo {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    .register-container {
+      background-color: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(6px);
+      border-radius: 16px;
+      padding: 40px 32px;
+      max-width: 420px;
+      width: 100%;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+      text-align: center;
+      transition: all 0.4s ease;
+      z-index: 1;
+    }
+
+    .register-container:hover {
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.12);
+    }
+
+    .register-container h1 {
+      font-size: 28px;
+      color: #223a5f;
+      margin-bottom: 25px;
+      position: relative;
+    }
+
+    .register-container h1::after {
+      content: '';
+      width: 60px;
+      height: 3px;
+      background: #2ecc71;
+      position: absolute;
+      bottom: -10px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-radius: 50px;
+    }
+
+    .form-group {
+      position: relative;
+      margin-bottom: 22px;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 14px 14px 14px 40px;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      font-size: 15px;
+      background-color: #f7f9fb;
+      transition: border 0.3s ease;
+    }
+
+    .form-group input:focus {
+      border-color: #2ecc71;
+      outline: none;
+      background-color: #fff;
+    }
+
+    .form-group i {
+      position: absolute;
+      top: 14px;
+      left: 12px;
+      color: #888;
+      font-size: 16px;
+    }
+
+    button[type="submit"] {
+      width: 100%;
+      padding: 12px;
+      background-color: #2ecc71;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s ease, transform 0.2s;
+    }
+
+    button[type="submit"]:hover {
+      background-color: #213591;
+      transform: scale(1.02);
+    }
+
+    .footer-text {
+      margin-top: 18px;
+      font-size: 14px;
+      color: #666;
+    }
+
+    @media (max-width: 480px) {
+      .register-container {
+        padding: 30px 20px;
+      }
+
+      .fixed-title {
+        font-size: 36px;
+        gap: 8px;
+      }
+
+      .fixed-title i {
+        font-size: 40px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Fixed top-left title -->
+  <div class="fixed-title">
+    <i class="fas fa-bus"></i>
+    TransitEase
+  </div>
+
+  <div class="register-container">
+    <h1><i class="fa-solid fa-user-plus"></i> Register</h1>
+    <form method="POST" action="/register">
+      <div class="form-group">
+        <i class="fa fa-user"></i>
+        <input type="text" name="username" placeholder="Username" required />
+      </div>
+      <div class="form-group">
+        <i class="fa fa-envelope"></i>
+        <input type="email" name="email" placeholder="Email" required />
+      </div>
+      <div class="form-group">
+        <i class="fa fa-lock"></i>
+        <input type="password" name="password" placeholder="Password" required />
+      </div>
+      <button type="submit">Register</button>
+      <div class="footer-text">
+        Already have an account? <a href="/login" style="color: #2ecc71; text-decoration: none;">Log in</a>
+      </div>
+    </form>
+  </div>
+</body>
+
+</html>

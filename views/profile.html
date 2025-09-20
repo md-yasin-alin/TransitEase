@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartFare - Smart Bus & Metro Ticketing</title>
+
+  <!-- Tailwind CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    #map {
+      height: 20rem;
+      width: 90%;
+      margin: auto;
+      border-radius: 0.5rem;
+    }
+  </style>
+</head>
+
+<body class="bg-white text-gray-900">
+  <!-- Navigation Bar -->
+  <header class="bg-gray-800 text-white">
+    <div class="max-w-7xl mx-auto flex justify-between items-center p-4">
+      <div class="flex items-center space-x-8">
+        <h1 class="text-2xl font-bold">TransitEase</h1>
+        <nav class="space-x-6">
+          <a href="/transport/register" class="hover:underline">Drive</a>
+          <a href="#business" class="hover:underline">Business</a>
+          <a href="#about" class="hover:underline">About</a>
+        </nav>
+      </div>
+      <nav class="space-x-6">
+        <a href="/login" class="hover:underline">Login</a>
+        <a href="/register" class="hover:underline">Sign Up</a>
+        <a href="#Payment" class="hover:underline">Payment</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero/Main Section -->
+  <section class="py-12 bg-gray-100">
+    <div class="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+      <!-- Left Side -->
+      <div>
+        <h2 class="text-3xl font-bold mb-4">Travel across the city with Transit Ease</h2>
+        <div class="flex space-x-6 mb-4">
+          <div class="flex items-center space-x-2">
+            <img src="https://img.icons8.com/ios-filled/50/bus.png" class="w-6 h-6" alt="Bus Icon" />
+            <span>Bus</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <img src="https://img.icons8.com/ios-filled/50/train.png" class="w-6 h-6" alt="Metro Icon" />
+            <span>Metro</span>
+          </div>
+        </div>
+        <div class="space-y-4">
+          <input id="pickup" type="text" placeholder="Current Location" class="w-full p-3 border border-gray-300 rounded"
+            readonly />
+          <input id="dropoff" type="text" placeholder="Click to get closest stop"
+            class="w-full p-3 border border-gray-300 rounded cursor-pointer bg-white" readonly />
+          <button id="seeSuggestions" class="w-full bg-blue-600 text-white py-3 rounded hover:bg-blue-700">Where
+            to?</button>
+        </div>
+        <p class="mt-4 text-blue-600 hover:underline cursor-pointer">Log in to experience your first journey with us</p>
+      </div>
+
+      <!-- Right Side Map -->
+      <div>
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+          <div id="map" class="bg-gray-200"></div>
+        </div>
+        <div class="mt-6 bg-gray-50 p-4 rounded shadow">
+          <h4 class="text-xl font-semibold mb-2">Suggested Routes</h4>
+          <p class="text-gray-700">Route: Banani ↔ Farmgate</p>
+          <p class="text-gray-700">Transport: Green Line Bus</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-gray-800 text-white py-6 mt-10">
+    <div class="max-w-7xl mx-auto px-4 text-center">
+      <p>&copy; 2025 SmartFare. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Map Script with Location and Closest Stop -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const pickupInput = document.getElementById("pickup");
+      const dropoffInput = document.getElementById("dropoff");
+      const seeBtn = document.getElementById("seeSuggestions");
+
+      const map = L.map("map").setView([23.8103, 90.4125], 13);
+      let userMarker = null;
+      let routeLine = null;
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map);
+
+      
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function (pos) {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+
+            map.setView([lat, lng], 15);
+            userMarker = L.marker([lat, lng]).addTo(map).bindPopup("You are here").openPopup();
+
+            // Reverse Geocode for Address
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+              .then(res => res.json())
+              .then(data => {
+                const address = data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+                pickupInput.value = address;
+              })
+              .catch(err => {
+                console.error("Reverse geocoding failed:", err);
+                pickupInput.value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+              });
+
+            dropoffInput.addEventListener("click", () => {
+              getClosestStop(lat, lng);
+            });
+          },
+          function () {
+            alert("Could not fetch your location");
+          }
+        );
+      }
+      else {
+        alert("Geolocation not supported by your browser.");
+      }
+
+      seeBtn.addEventListener("click", () => {
+        window.location.href = "/select_trip";
+      });
+    });
+  </script>
+</body>
+
+</html>
