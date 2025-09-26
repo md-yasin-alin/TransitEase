@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>Transport Profile - SmartFare</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f9f9f9;
+      color: #333;
+      text-align: center;
+    }
+
+    header {
+      background-color: #1976d2;
+      color: white;
+      padding: 1rem;
+      font-size: 1.5rem;
+    }
+
+    button,
+    .close-btn {
+      padding: 10px 16px;
+      font-size: 1rem;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+
+    button:hover,
+    .close-btn:hover {
+      opacity: 0.9;
+    }
+
+    .logout-btn {
+      background-color: #36b5f4;
+      color: white;
+      border-radius: 6px;
+      padding: 10px 16px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .action-btn {
+      background-color: #46bf65;
+      color: white;
+    }
+
+    .error {
+      color: red;
+      font-weight: bold;
+    }
+
+    .success {
+      color: green;
+      font-weight: bold;
+    }
+
+    #reader {
+      width: 320px;
+      margin: 0 auto;
+    }
+
+    #map {
+      height: 528px;
+      width: 100%;
+      margin-top: 20px;
+    }
+
+    .header-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 1rem;
+    }
+
+    .title {
+      font-size: 1.5rem;
+      color: white;
+      font-weight: 600;
+    }
+
+    .logout-form {
+      margin: 0;
+    }
+
+    .menu-btn {
+      font-size: 1.5rem;
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+    }
+
+    .side-panel {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 300px;
+      height: 100%;
+      background-color: #ffffff;
+      box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
+      z-index: 2000;
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+      padding: 1rem;
+      overflow-y: auto;
+      border-right: 3px solid #1976d2;
+    }
+
+    .side-panel.visible {
+      transform: translateX(0);
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid #ccc;
+      padding-bottom: 0.5rem;
+    }
+
+    .close-panel-btn {
+      background: #1976d2;
+      color: white;
+      border: none;
+      font-size: 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .income-section {
+      margin-top: 1rem;
+      text-align: left;
+    }
+
+    .income-header {
+      font-weight: bold;
+      background-color: #f0f0f0;
+      padding: 8px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .income-details {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+      padding-left: 10px;
+      color: #555;
+    }
+
+    .income-details.expanded {
+      max-height: 500px;
+      /* enough for content */
+    }
+
+    .income-details p {
+      margin: 8px 0;
+      padding: 8px;
+      background-color: #fdfdfd;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+    }
+
+
+    .hidden {
+      display: none;
+    }
+
+
+
+    /* QR Scanner Panel sliding from right */
+    .qr-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 320px;
+      height: 100%;
+      background-color: #ffffff;
+      box-shadow: -2px 0 8px rgba(0, 0, 0, 0.2);
+      z-index: 3000;
+      transform: translateX(100%);
+      transition: transform 0.3s ease;
+      padding: 1rem;
+      overflow-y: auto;
+      border-left: 3px solid #1976d2;
+    }
+
+    .qr-panel.visible {
+      transform: translateX(0);
+    }
+
+    /* The toggle button on right side */
+    .qr-toggle-btn {
+      position: fixed;
+      top: 1.5rem;
+      right: 0;
+      background-color: white;
+      color: black;
+      border: none;
+      border-radius: 6 6px 6px 6;
+      padding: 10px 14px;
+      cursor: pointer;
+      font-size: 1.25rem;
+      z-index: 3500;
+      user-select: none;
+      margin-right: 123px;
+      margin-top: 5px;
+    }
+
+    .qr-toggle-btn:hover {
+      background-color: white;
+    }
+  </style>
+</head>
+
+<body>
+
+
+  <!-- Inside <body> before <header> -->
+  <div id="side-panel" class="side-panel">
+    <div class="panel-header">
+      <h2>📊 Today's Income</h2>
+      <button class="close-panel-btn" onclick="togglePanel()">✕</button>
+    </div>
+    <div class="panel-content">
+      <p><strong>Total Income:</strong> <span id="total-income">৳0</span></p>
+
+      <div class="income-section">
+        <div class="income-header" onclick="toggleDetail('cash')">
+          💵 Cash: <span id="cash-income">৳0</span>
+        </div>
+        <div id="cash-details" class="income-details">
+          <!-- dynamically populated -->
+        </div>
+      </div>
+
+      <div class="income-section">
+        <div class="income-header" onclick="toggleDetail('online')">
+          💳 Online: <span id="online-income">৳0</span>
+        </div>
+        <div id="online-details" class="income-details">
+          <!-- dynamically populated -->
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- QR Scanner Side Panel (initially hidden, slides in from right) -->
+  <div id="qrPanel" class="qr-panel">
+    <div class="panel-header">
+      <h2>🔍 QR Scanner</h2>
+      <button class="close-panel-btn" onclick="toggleQRPanel()">✕</button>
+    </div>
+    <div id="qrScannerContent">
+      <!-- Scanner will be injected here -->
+    </div>
+  </div>
+
+
+
+
+  <header>
+    <div class="header-container"
+      style="display: flex; align-items: center; justify-content: space-between; padding: 0 1rem;">
+
+      <div style="display: flex; align-items: center; gap: 1rem;">
+        <button class="menu-btn" onclick="togglePanel()">☰</button>
+        <div class="title" id="companyName">Loading Company...</div>
+      </div>
+
+      <form action="/transport/logout" method="GET" class="logout-form">
+        <button type="submit" class="logout-btn">Logout</button>
+      </form>
+    </div>
+  </header>
+
+
+  <!-- <button id="scan-btn" class="action-btn">Scan QR Code</button> -->
+  <button id="qrToggleBtn" class="qr-toggle-btn">🔍 QR Scanner</button>
+
+  <div id="scanner-container"></div>
+
+  <h2>Route Map</h2>
+  <div id="map"></div>
+
+  <script>
+    // Start QR scanner inside qrScannerContent
+    let scanner = null;
+    function startScanner() {
+      const container = document.getElementById("qrScannerContent");
+      if (document.getElementById("reader")) return;
+
+      container.innerHTML = `
+    <div id="reader" style="width: 300px; margin: 0 auto;"></div>
+    <div id="result" style="margin-top: 10px;"></div>
+  `;
+
+      scanner = new Html5QrcodeScanner("reader", {
+        qrbox: { width: 250, height: 250 },
+        fps: 20,
+      });
+      setTimeout(() => {
+        scanner.render(onScanSuccess, onScanError);
+      }, 0);
+
+
+
+    }
+    async function loadRouteMap() {
+      try {
+        const defaultLatLng = [23.8103, 90.4125]; // Dhaka default
+      
+
+        
+       
+
+        const map = L.map("map").setView(defaultLatLng, 13);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 18,
+        }).addTo(map);
+
+        
+
+        L.geoJSON(routeGeoJson, {
+          style: {
+            color: '#1976d2',
+            weight: 5,
+            opacity: 0.8
+          }
+        }).addTo(map);
+
+        
+
+      } catch (err) {
+        console.error("Failed to load route map:", err);
+      }
+    }
+     window.onload = async () => {
+      loadRouteMap();
+    };
+
+  </script>
+
+
+</body>
+
+</html>
