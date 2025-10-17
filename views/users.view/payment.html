@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pay Fare - bKash</title>
+  <style>
+    body {
+      margin: 0;
+      height: 100vh;
+      background: linear-gradient(135deg, #E2136E 0%, #FF6B35 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .pay-container {
+      background-color: #ffffff;
+      padding: 32px;
+      border-radius: 16px;
+      height: auto;
+      min-height: 500px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+      max-width: 400px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .pay-container h2 {
+      font-size: 24px;
+      color: #E2136E;
+      margin-bottom: 16px;
+      font-weight: bold;
+    }
+
+    #fareText {
+      font-size: 20px;
+      font-weight: 640;
+      margin-bottom: 24px;
+      color: #000000;
+    }
+
+    .bkash-logo {
+      width: 80px;
+      height: 40px;
+      margin: 0 auto 20px;
+      background-color: #E2136E;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    .form-group {
+      margin-bottom: 20px;
+      text-align: left;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 8px;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      font-size: 16px;
+      transition: border-color 0.3s;
+      box-sizing: border-box;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #E2136E;
+    }
+
+    .bkash-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #E2136E 0%, #FF6B35 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.2s;
+      margin-top: 10px;
+    }
+
+    .bkash-btn:hover {
+      transform: translateY(-2px);
+    }
+
+    .bkash-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    #successOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.75);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    .success-content {
+      background: #ffffff;
+      padding: 40px 30px;
+      border-radius: 16px;
+      text-align: center;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    .checkmark-circle {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      border: 4px solid #4caf50;
+      position: relative;
+      display: inline-block;
+      animation: spin 1s ease-out forwards;
+    }
+
+    .checkmark-circle::after {
+      content: "✓";
+      position: absolute;
+      font-size: 36px;
+      color: #4caf50;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      animation: checkFade 0.5s 1s ease forwards;
+    }
+
+    .success-message {
+      margin-top: 20px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .success-ok-btn {
+      margin-top: 25px;
+      padding: 10px 20px;
+      background-color: #4caf50;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .success-ok-btn:hover {
+      background-color: #388e3c;
+    }
+
+    .verification-section {
+      display: none;
+    }
+
+    .verification-section.show {
+      display: block;
+    }
+
+    .error-message {
+      color: #e74c3c;
+      font-size: 14px;
+      margin-top: 5px;
+      display: none;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    .otp-input {
+      text-align: center;
+      font-size: 18px;
+      letter-spacing: 2px;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    @keyframes checkFade {
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: scale(0.9);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1);
+      }
+    }
+
+    #qrOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.75);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+
+    .qr-content {
+  background: #ffffff;
+  padding: 40px 30px;
+  border-radius: 16px;
+  text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  animation: fadeIn 0.4s ease-out;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+
+    .qr-ok-btn {
+      margin-top: 25px;
+      padding: 10px 20px;
+      background-color: #080e6b;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .qr-ok-btn:hover {
+      background-color: #000456;
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Add this in payment page's body -->
+  <div id="qrOverlay" style="display: none;">
+    <div class="qr-content">
+      <h3>Please scan this QR code to end your trip:</h3>
+      <img id="endTripQRCodeImage" src="" alt="End Trip QR Code" style="width:150px; height:150px;" />
+      <button class="qr-ok-btn" onclick="endTripRedirect()">End Trip</button>
+    </div>
+  </div>
+
+
+  <div class="pay-container">
+    <div class="bkash-logo">bKash</div>
+    <h2>Pay Your Fare</h2>
+    <p id="fareText"></p>
+    
+    <div id="paymentForm">
+      <div class="form-group">
+        <label for="phoneNumber">bKash Phone Number</label>
+        <input type="tel" id="phoneNumber" placeholder="01XXXXXXXXX" maxlength="11">
+        <div class="error-message" id="phoneError">Please enter a valid bKash number</div>
+      </div>
+      
+      <button class="bkash-btn" onclick="sendOTP()">Send OTP</button>
+      
+      <div class="verification-section" id="verificationSection">
+        <div class="form-group">
+          <label for="otpCode">Verification Code</label>
+          <input type="text" id="otpCode" placeholder="Enter 6-digit code" maxlength="6" class="otp-input">
+          <div class="error-message" id="otpError">Please enter a valid OTP</div>
+        </div>
+        
+        <button class="bkash-btn" onclick="verifyOTP()">Pay Now</button>
+        <button class="bkash-btn" onclick="resendOTP()" style="background: #95a5a6; margin-top: 10px;">Resend OTP</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="successOverlay">
+    <div class="success-content">
+      <div class="checkmark-circle"></div>
+      <p class="success-message">Payment Completed Successfully</p>
+      <button class="success-ok-btn" onclick="handlePostPayment()">OK</button>
+    </div>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const fare = params.get("fare") || "0.00";
+    const tripId = params.get("tripId");
+
+    document.getElementById('fareText').innerText = `Amount to Pay: ৳${fare}`;
+
+    let generatedOTP = '';
+    let phoneNumber = '';
+
+    function validatePhoneNumber(phone) {
+      // bKash numbers start with 01 and are 11 digits
+      const phoneRegex = /^01[3-9]\d{8}$/;
+      return phoneRegex.test(phone);
+    }
+
+    function generateOTP() {
+      return Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    function showError(errorId) {
+      document.getElementById(errorId).classList.add('show');
+    }
+
+    function hideError(errorId) {
+      document.getElementById(errorId).classList.remove('show');
+    }
+
+    function sendOTP() {
+      const phoneInput = document.getElementById('phoneNumber');
+      const phone = phoneInput.value.trim();
+      
+      hideError('phoneError');
+      
+      if (!validatePhoneNumber(phone)) {
+        showError('phoneError');
+        return;
+      }
+
+      phoneNumber = phone;
+      generatedOTP = generateOTP();
+      
+      // Simulate OTP sending
+      alert(`OTP sent to ${phone}\nYour OTP is: ${generatedOTP}\n(In real app, this would be sent via SMS)`);
+      
+      document.getElementById('verificationSection').classList.add('show');
+      document.getElementById('phoneNumber').disabled = true;
+      document.querySelector('button[onclick="sendOTP()"]').disabled = true;
+    }
+
+    function verifyOTP() {
+      const otpInput = document.getElementById('otpCode');
+      const otp = otpInput.value.trim();
+      
+      hideError('otpError');
+      
+      if (otp !== generatedOTP) {
+        showError('otpError');
+        return;
+      }
+
+      // Simulate successful payment
+      document.getElementById('successOverlay').style.display = 'flex';
+    }
+
+    function resendOTP() {
+      generatedOTP = generateOTP();
+      alert(`New OTP sent to ${phoneNumber}\nYour new OTP is: ${generatedOTP}`);
+      document.getElementById('otpCode').value = '';
+      hideError('otpError');
+    }
+
+    // ✅ Async function triggered after user clicks OK
+    async function handlePostPayment() {
+      try {
+        const res = await fetch('/payment/success', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tripId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          // ✅ Hide success overlay and show QR overlay
+          const qrCode = sessionStorage.getItem('tripQRCode');
+          if (qrCode) {
+            document.getElementById('successOverlay').style.display = 'none';
+
+            const qrOverlay = document.getElementById('qrOverlay');
+            const qrImage = document.getElementById('endTripQRCodeImage');
+            qrImage.src = qrCode;
+            qrOverlay.style.display = 'flex';
+          } else {
+            // fallback
+            window.location.href = "/trip_started";
+          }
+        } else {
+          alert("Payment succeeded but DB update failed.");
+        }
+      } catch (err) {
+        console.error("Payment DB update error:", err);
+        alert("Server error while confirming payment.");
+      }
+    }
+    function endTripRedirect() {
+      document.getElementById('qrOverlay').style.display = 'none';
+      setTimeout(() => {
+        window.location.href = "/select_trip";
+      }, 300);
+    }
+
+  </script>
+</body>
+
+</html>

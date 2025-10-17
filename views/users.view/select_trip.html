@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Select Trip - TransitEase</title>
+
+    <!-- Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .input-container {
+            position: relative;
+        }
+
+        .input-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6B7280;
+            z-index: 10;
+        }
+
+        .form-input {
+            padding-left: 48px;
+            padding-right: 16px;
+            padding-top: 16px;
+            padding-bottom: 16px;
+            border: 2px solid #E5E7EB;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background-color: #F9FAFB;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: #3B82F6;
+            background-color: white;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .recent-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .recent-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .recent-card.empty {
+            background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
+            cursor: default;
+        }
+
+        .recent-card.empty:hover {
+            transform: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3B82F6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .pulse-animation {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation Bar -->
+    <header class="bg-gray-800 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto flex justify-between items-center p-4">
+            <div class="flex items-center space-x-4">
+                <button onclick="window.location.href='/profile'" class="flex items-center space-x-2 text-gray-300 hover:text-white transition-colors">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Back to Profile</span>
+                </button>
+                <h1 class="text-2xl font-bold">TransitEase</h1>
+            </div>
+            <button id="logoutBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center space-x-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                </svg>
+                <span>Logout</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="max-w-4xl mx-auto p-6">
+        <!-- Header Section -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-gray-900 mb-4">Plan Your Journey</h1>
+            <p class="text-xl text-gray-600">Select your starting point and destination to find the best routes</p>
+        </div>
+
+        <!-- Trip Selection Card -->
+        <div class="bg-white rounded-2xl shadow-xl p-8 mb-8">
+            <div class="space-y-6">
+                <!-- Source Input -->
+                <div class="input-container">
+                    <i class="fas fa-map-marker-alt input-icon"></i>
+                    <input id="sourceInput" type="text" placeholder="Enter your starting location" 
+                           class="form-input w-full" list="sourceStops" autocomplete="off" />
+        <datalist id="sourceStops"></datalist>
+                </div>
+
+                <!-- Destination Input -->
+                <div class="input-container">
+                    <i class="fas fa-flag-checkered input-icon"></i>
+                    <input id="destinationInput" type="text" placeholder="Enter your destination" 
+                           class="form-input w-full" list="destinationStops" autocomplete="off" />
+        <datalist id="destinationStops"></datalist>
+                </div>
+
+                <!-- Find Routes Button -->
+                <button id="findRoutesBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 rounded-xl font-semibold text-lg transition-all duration-200 transform hover:scale-105 shadow-lg">
+                    <i class="fas fa-route mr-2"></i>
+                    Find Routes
+                </button>
+            </div>
+        </div>
+
+        <!-- Recent Destinations Section -->
+        <div class="bg-white rounded-2xl shadow-xl p-8">
+            <div class="flex items-center mb-6">
+                <i class="fas fa-history text-blue-600 text-2xl mr-3"></i>
+                <h2 class="text-2xl font-bold text-gray-900">Recent Destinations</h2>
+            </div>
+            
+            <div id="recentDestinations">
+                <div class="flex items-center justify-center py-8">
+                    <div class="loading-spinner mr-3"></div>
+                    <span class="text-gray-600">Loading your recent destinations...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+
+
+    <script>
+        // Global variables
+        let recentDestinations = [];
+
+        // Autofill source input with closest stop based on geolocation
+        async function autofillClosestStop() {
+            if (!navigator.geolocation) {
+                console.warn("Geolocation is not supported by your browser.");
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(async (position) => {
+                const lat = position.coords.latitude;
+                const lng = position.coords.longitude;
+
+                try {
+                    const res = await fetch("/api/closest_stop", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ lat, lng }),
+                    });
+
+                    const data = await res.json();
+                    if (data?.stop?.stop_name) {
+                        document.getElementById("sourceInput").value = data.stop.stop_name;
+                    } else {
+                        console.warn("No closest stop found.");
+                    }
+                } catch (err) {
+                    console.error("Error fetching closest stop:", err);
+                }
+            }, (error) => {
+                console.error("Geolocation error:", error);
+            });
+        }
+
+        // Fetch stop name suggestions for autocomplete
+        async function fetchStopSuggestions(query) {
+            if (!query) return [];
+
+            try {
+                const res = await fetch(`/api/stops/autocomplete?q=${encodeURIComponent(query)}`);
+                const data = await res.json();
+                return data.success ? data.stops : [];
+            } catch (err) {
+                console.error("Autocomplete fetch error:", err);
+                return [];
+            }
+        }
+
+        // Setup autocomplete for a given input and its datalist
+        function setupAutocomplete(inputId, datalistId) {
+            const input = document.getElementById(inputId);
+            const datalist = document.getElementById(datalistId);
+
+            input.addEventListener('input', async () => {
+                const query = input.value.trim();
+                if (query.length < 1) {
+                    datalist.innerHTML = '';
+                    return;
+                }
+
+                const stops = await fetchStopSuggestions(query);
+                datalist.innerHTML = stops.map(stop => `<option value="${stop}">`).join('');
+            });
+        }
+
+        // Load recent destinations from API
+        async function loadRecentDestinations() {
+            try {
+                const res = await fetch("/api/recent_destinations");
+                const data = await res.json();
+
+                if (data.success && data.destinations.length > 0) {
+                    recentDestinations = data.destinations;
+                    displayRecentDestinations();
+                } else {
+                    displayNoRecentDestinations();
+                }
+            } catch (err) {
+                console.error("Error loading recent destinations:", err);
+                displayErrorLoadingDestinations();
+            }
+        }
+
+        // Display recent destinations
+        function displayRecentDestinations() {
+            const container = document.getElementById("recentDestinations");
+            
+            const destinationsHTML = recentDestinations.map((dest, index) => {
+                const date = new Date(dest.date).toLocaleDateString();
+                return `
+                    <div class="recent-card" onclick="selectRecentDestination('${dest.destination}')">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <i class="fas fa-map-marker-alt text-white text-lg mr-3"></i>
+                                <div>
+                                    <h3 class="text-white font-semibold text-lg">${dest.destination}</h3>
+                                    <p class="text-blue-100 text-sm">Last visited: ${date}</p>
+                                </div>
+                            </div>
+                            <i class="fas fa-chevron-right text-white text-lg"></i>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = destinationsHTML;
+        }
+
+        // Display when no recent destinations
+        function displayNoRecentDestinations() {
+            const container = document.getElementById("recentDestinations");
+            container.innerHTML = `
+                <div class="recent-card empty">
+                    <div class="flex items-center justify-center py-4">
+                        <i class="fas fa-history text-gray-400 text-2xl mr-3"></i>
+                        <div class="text-center">
+                            <h3 class="text-gray-600 font-semibold">No Recent Destinations</h3>
+                            <p class="text-gray-500 text-sm">Your recent trip destinations will appear here</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Display error when loading destinations fails
+        function displayErrorLoadingDestinations() {
+            const container = document.getElementById("recentDestinations");
+            container.innerHTML = `
+                <div class="recent-card empty">
+                    <div class="flex items-center justify-center py-4">
+                        <i class="fas fa-exclamation-triangle text-gray-400 text-2xl mr-3"></i>
+                        <div class="text-center">
+                            <h3 class="text-gray-600 font-semibold">Unable to Load Destinations</h3>
+                            <p class="text-gray-500 text-sm">Please try refreshing the page</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Select recent destination
+        function selectRecentDestination(destination) {
+            document.getElementById("destinationInput").value = destination;
+            // Add visual feedback
+            const destinationInput = document.getElementById("destinationInput");
+            destinationInput.style.borderColor = "#10B981";
+            destinationInput.style.backgroundColor = "#F0FDF4";
+            setTimeout(() => {
+                destinationInput.style.borderColor = "#E5E7EB";
+                destinationInput.style.backgroundColor = "#F9FAFB";
+            }, 2000);
+        }
+
+        // Find routes function
+        async function findRoutes() {
+            const source = document.getElementById("sourceInput").value.trim();
+            const destination = document.getElementById("destinationInput").value.trim();
+
+            if (!source || !destination) {
+                showNotification("Please enter both source and destination!", "error");
+                return;
+            }
+
+            if (source === destination) {
+                showNotification("Source and destination cannot be the same!", "error");
+                return;
+            }
+
+            const findBtn = document.getElementById("findRoutesBtn");
+            const originalText = findBtn.innerHTML;
+            
+            // Show loading state
+            findBtn.innerHTML = '<div class="loading-spinner mr-2"></div>Finding Routes...';
+            findBtn.disabled = true;
+
+            try {
+                const res = await fetch("/api/get_route", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ source, destination }),
+                });
+
+                const data = await res.json();
+
+                if (!data.success) {
+                    showNotification("No routes found for this journey!", "error");
+                    return;
+                }
+
+                sessionStorage.setItem("routeData", JSON.stringify(data));
+                window.location.href = "/book_trip";
+            } catch (err) {
+                console.error("Error fetching routes:", err);
+                showNotification("Failed to fetch route data. Please try again.", "error");
+            } finally {
+                // Restore button state
+                findBtn.innerHTML = originalText;
+                findBtn.disabled = false;
+            }
+        }
+
+        // Show notification
+        function showNotification(message, type = "info") {
+            // Create notification element
+            const notification = document.createElement("div");
+            notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 transform transition-all duration-300 ${
+                type === "error" ? "bg-red-500 text-white" : "bg-blue-500 text-white"
+            }`;
+            notification.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas ${type === "error" ? "fa-exclamation-circle" : "fa-info-circle"} mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+
+            document.body.appendChild(notification);
+
+            // Animate in
+            setTimeout(() => {
+                notification.style.transform = "translateX(0)";
+            }, 100);
+
+            // Remove after 4 seconds
+            setTimeout(() => {
+                notification.style.transform = "translateX(100%)";
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 4000);
+        }
+
+        // Logout functionality
+        function setupLogout() {
+            const logoutBtn = document.getElementById("logoutBtn");
+            logoutBtn.addEventListener("click", () => {
+                if (confirm("Are you sure you want to logout?")) {
+                    window.location.href = "/logout";
+                }
+            });
+        }
+
+        // On page load, setup everything
+        window.onload = () => {
+            setupAutocomplete('sourceInput', 'sourceStops');
+            setupAutocomplete('destinationInput', 'destinationStops');
+            autofillClosestStop();
+            loadRecentDestinations();
+            setupLogout();
+
+            // Setup button click handler
+            document.getElementById("findRoutesBtn").addEventListener("click", findRoutes);
+        };
+    </script>
+
+
+</body>
+
+
+
+</html>
