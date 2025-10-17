@@ -88,18 +88,195 @@
       color: #0d6efd;
       margin-bottom: 10px;
     }
+
+    .form-group {
+      margin-bottom: 15px;
+      text-align: left;
+    }
+
+    .error-message {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      animation: slideDown 0.3s ease;
+    }
+
+    .error-content {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .error-content i {
+      font-size: 16px;
+    }
+
+    .field-error {
+      color: #dc3545;
+      font-size: 12px;
+      margin-top: 5px;
+      display: block;
+    }
+
+    .form-group input.error {
+      border-color: #dc3545;
+    }
+
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
   </style>
 </head>
 <body>
   <div class="login-container">
     <div class="icon">🛣️</div>
     <h1>Driver Login</h1>
-    <form method="POST" action="/transport/login">
-      <input type="text" name="registration_number" placeholder="Registration Number" required />
-      <input type="password" name="password" placeholder="Password" required />
+    
+    <!-- Error Message Display -->
+    <div id="errorMessage" class="error-message" style="display: none;">
+      <div class="error-content">
+        <i class="fas fa-exclamation-triangle"></i>
+        <span id="errorText"></span>
+      </div>
+    </div>
+    
+    <form method="POST" action="/transport/login" onsubmit="return validateForm()">
+      <div class="form-group">
+        <input type="text" name="registration_number" id="registration_number" placeholder="Registration Number" required />
+        <div class="field-error" id="registrationError" style="display: none;">Registration number is required</div>
+      </div>
+      <div class="form-group">
+        <input type="password" name="password" id="password" placeholder="Password" required />
+        <div class="field-error" id="passwordError" style="display: none;">Password is required</div>
+      </div>
       <button type="submit">Login</button>
       <a class="register-link" href="/transport/register">New driver? Register here</a>
     </form>
   </div>
+
+  <script>
+    function validateForm() {
+      const registration = document.getElementById('registration_number').value.trim();
+      const password = document.getElementById('password').value.trim();
+      let isValid = true;
+
+      // Clear previous errors
+      clearErrors();
+
+      // Registration number validation
+      if (!registration) {
+        showFieldError('registrationError', 'Registration number is required');
+        markFieldError('registration_number');
+        isValid = false;
+      }
+
+      // Password validation
+      if (!password) {
+        showFieldError('passwordError', 'Password is required');
+        markFieldError('password');
+        isValid = false;
+      } else if (password.length < 4) {
+        showFieldError('passwordError', 'Password must be at least 4 characters');
+        markFieldError('password');
+        isValid = false;
+      }
+
+      return isValid;
+    }
+
+    function showFieldError(errorId, message) {
+      const errorElement = document.getElementById(errorId);
+      errorElement.textContent = message;
+      errorElement.style.display = 'block';
+    }
+
+    function markFieldError(fieldId) {
+      document.getElementById(fieldId).classList.add('error');
+    }
+
+    function clearErrors() {
+      document.querySelectorAll('.field-error').forEach(error => {
+        error.style.display = 'none';
+      });
+      document.querySelectorAll('input').forEach(input => {
+        input.classList.remove('error');
+      });
+      document.getElementById('errorMessage').style.display = 'none';
+    }
+
+    function showErrorMessage(message) {
+      document.getElementById('errorText').textContent = message;
+      document.getElementById('errorMessage').style.display = 'block';
+    }
+
+      // Check for URL parameters for error and success messages
+      window.onload = function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const error = urlParams.get('error');
+        const success = urlParams.get('success');
+        
+        if (error) {
+          showErrorMessage(decodeURIComponent(error));
+        }
+        
+        if (success) {
+          showSuccessMessage(decodeURIComponent(success));
+        }
+      };
+
+      function showSuccessMessage(message) {
+        const successDiv = document.createElement('div');
+        successDiv.className = 'success-message';
+        successDiv.style.cssText = `
+          background-color: #10B981;
+          color: white;
+          padding: 16px;
+          border-radius: 8px;
+          margin-bottom: 20px;
+          display: flex;
+          align-items: center;
+          animation: slideDown 0.3s ease;
+        `;
+        successDiv.innerHTML = `
+          <i class="fas fa-check-circle" style="margin-right: 8px;"></i>
+          <span>${message}</span>
+        `;
+        
+        const form = document.querySelector('form');
+        form.parentNode.insertBefore(successDiv, form);
+        
+        // Auto-hide after 5 seconds
+        setTimeout(() => {
+          successDiv.style.animation = 'slideUp 0.3s ease';
+          setTimeout(() => {
+            if (successDiv.parentNode) {
+              successDiv.parentNode.removeChild(successDiv);
+            }
+          }, 300);
+        }, 5000);
+      }
+
+    // Clear errors when user starts typing
+    document.getElementById('registration_number').addEventListener('input', function() {
+      this.classList.remove('error');
+      document.getElementById('registrationError').style.display = 'none';
+    });
+
+    document.getElementById('password').addEventListener('input', function() {
+      this.classList.remove('error');
+      document.getElementById('passwordError').style.display = 'none';
+    });
+  </script>
 </body>
 </html>
