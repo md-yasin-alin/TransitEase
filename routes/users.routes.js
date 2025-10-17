@@ -21,7 +21,8 @@ const {
   paymentSuccess,
   updateTripFare,
   updatePaymentStatus,
-  autocompleteStops
+  autocompleteStops,
+  getRecentDestinations
 } = require("../controllers/users.controller");
 
 // Page routes
@@ -54,6 +55,6 @@ router.post("/api/trip/update_fare", updateTripFare);
 router.post("/payment/success", updatePaymentStatus);
 
 router.get('/api/stops/autocomplete', checkAuthentication, autocompleteStops);
-
+router.get('/api/recent_destinations', checkAuthentication, getRecentDestinations);
 
 module.exports = router;

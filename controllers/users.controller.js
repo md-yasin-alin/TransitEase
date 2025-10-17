@@ -34,19 +34,28 @@ exports.loadTripStarted = (req, res) => {
 // ===== Authentication Logic =====
 exports.registerUser = async (req, res) => {
   const { username, email, password } = req.body;
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  const sql = "INSERT INTO users (username, email, password) VALUES (?, ?, ?)";
-  db.query(sql, [username, email, hashedPassword], (err) => {
-    if (err) return res.status(500).send("Registration failed: " + err.message);
-    res.redirect("/login");
-  });
+  
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const sql = "INSERT INTO users (username, email, password) VALUES (?, ?, ?)";
+    
+    db.query(sql, [username, email, hashedPassword], (err) => {
+      if (err) {
+        console.error("Registration error:", err);
+        return res.redirect("/register?error=" + encodeURIComponent("Registration failed. Please try again."));
+      }
+      res.redirect("/login?success=" + encodeURIComponent("Registration successful! Please log in."));
+    });
+  } catch (error) {
+    console.error("Registration error:", error);
+    res.redirect("/register?error=" + encodeURIComponent("Registration failed. Please try again."));
+  }
 };
 
 exports.loginUser = (req, res, next) => {
   passport.authenticate("user-local", {
     successRedirect: "/profile",
-    failureRedirect: "/login",
+    failureRedirect: "/login?error=" + encodeURIComponent(req.flash('error')[0] || 'Invalid email or password'),
     failureFlash: true,
   })(req, res, next);
 };
@@ -363,5 +372,36 @@ exports.autocompleteStops = (req, res) => {
 
     const stopNames = results.map(row => row.stop_name);
     res.json({ success: true, stops: stopNames });
+  });
+};
+
+// Get recent destinations for logged in user
+exports.getRecentDestinations = (req, res) => {
+  const userId = req.user?.id;
+
+  if (!userId) {
+    return res.status(401).json({ success: false, message: "Unauthorized" });
+  }
+
+  const sql = `
+    SELECT DISTINCT destination, created_at
+    FROM trips 
+    WHERE user_id = ? AND destination IS NOT NULL AND destination != ''
+    ORDER BY created_at DESC
+    LIMIT 5
+  `;
+
+  db.query(sql, [userId], (err, results) => {
+    if (err) {
+      console.error("Recent destinations DB error:", err);
+      return res.status(500).json({ success: false, message: "DB error" });
+    }
+
+    const destinations = results.map(row => ({
+      destination: row.destination,
+      date: row.created_at
+    }));
+
+    res.json({ success: true, destinations });
   });
 };

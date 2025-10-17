@@ -21,20 +21,29 @@ exports.loadtransport = (req, res) => {
 
 exports.registertransport = async (req, res) => {
   const { registration_number, password, company_id } = req.body;
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  const sql = 'INSERT INTO buses (registration_number, password,company_id) VALUES (?, ?, ?)';
-  db.query(sql, [registration_number, hashedPassword, company_id], (err, result) => {
-    if (err) return res.status(500).send('Registration failed: ' + err.message);
-    res.redirect('/transport/login');
-  });
+  
+  try {
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const sql = 'INSERT INTO buses (registration_number, password,company_id) VALUES (?, ?, ?)';
+    
+    db.query(sql, [registration_number, hashedPassword, company_id], (err, result) => {
+      if (err) {
+        console.error("Transport registration error:", err);
+        return res.redirect('/transport/register?error=' + encodeURIComponent('Registration failed. Please try again.'));
+      }
+      res.redirect('/transport/login?success=' + encodeURIComponent('Registration successful! Please log in.'));
+    });
+  } catch (error) {
+    console.error("Transport registration error:", error);
+    res.redirect('/transport/register?error=' + encodeURIComponent('Registration failed. Please try again.'));
+  }
 };
 
 
 exports.logintransport = (req, res, next) => {
   passport.authenticate('bus-local', {
     successRedirect: '/transport/profile',
-    failureRedirect: '/transport/login',
+    failureRedirect: '/transport/login?error=' + encodeURIComponent(req.flash('error')[0] || 'Invalid registration number or password'),
     failureFlash: true
   })(req, res, next);
 };
@@ -296,12 +305,12 @@ exports.getTodayIncome = (req, res) => {
   const sql = `
     SELECT 
       t.id AS trip_id,
-      t.fare AS amount,
+      COALESCE(t.fare,0) AS amount,
       t.type AS payment_type
     FROM trips t
     WHERE t.bus_id = ?
-      AND DATE(t.created_at) = CURDATE()
       AND t.status = 'completed'
+      AND DATE(t.created_at) = CURDATE()
   `;
 
   db.query(sql, [busId], (err, results) => {
@@ -310,21 +319,33 @@ exports.getTodayIncome = (req, res) => {
       return res.status(500).json({ error: "Database error" });
     }
 
+    if (!results.length) {
+      return res.json({
+        total: 0,
+        cash: 0,
+        online: 0,
+        cashDetails: [],
+        onlineDetails: []
+      });
+    }
+
     let total = 0, cash = 0, online = 0;
     const cashDetails = [], onlineDetails = [];
 
     results.forEach(trip => {
-      
+      const amount = parseFloat(trip.amount) || 0;
 
       if (trip.payment_type === "cash") {
-        cash += parseFloat(trip.amount);
-        cashDetails.push({ trip_id: trip.trip_id, amount: trip.amount });
+        cash += amount;
+        cashDetails.push({ trip_id: trip.trip_id, amount });
       } else if (trip.payment_type === "online") {
-        online += parseFloat(trip.amount);
-        onlineDetails.push({ trip_id: trip.trip_id, amount: trip.amount });
+        online += amount;
+        onlineDetails.push({ trip_id: trip.trip_id, amount });
       }
     });
+
     total = cash + online;
+
     res.json({
       total,
       cash,
@@ -334,6 +355,7 @@ exports.getTodayIncome = (req, res) => {
     });
   });
 };
+
 exports.getSourceStop = (req, res) => {
   const { tripId, userId } = req.body;
 
