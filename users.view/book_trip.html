@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Book Trip - Transit Ease</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+            overflow: hidden;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #ffffff;
+            color: #333;
+        }
+
+        #mapContainer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1;
+            /* behind UI */
+        }
+
+        #map {
+            height: 100%;
+            width: 100%;
+            border-radius: 0;
+            box-shadow: none;
+            position: relative;
+        }
+
+        .leaflet-interactive.route-line {
+            transition: opacity 0.4s ease;
+        }
+
+        #routeDrawer .book-btn {
+            width: 100%;
+            margin-top: 12px;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 700;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #routeDrawer .book-btn:hover {
+            background-color: #005dc0;
+        }
+
+
+        .book-btn {
+            width: 100%;
+            background-color: #007bff;
+            color: white;
+            padding: 14px;
+            font-size: 16px;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .book-btn:hover {
+            background-color: #005dc0;
+        }
+
+        #routeDrawer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 335px;
+            height: 100vh;
+            background-color: #f7f7f7;
+            border-right: 1px solid #ddd;
+            padding: 16px;
+            overflow-y: auto;
+            z-index: 1002;
+            transition: transform 0.3s ease;
+        }
+
+        #routeDrawer.collapsed {
+            transform: translateX(-100%);
+        }
+
+        #routeDrawer h2 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            text-align: center;
+            background-color: #007bff;
+            color: white;
+            padding: 12px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0, 123, 255, 0.3);
+        }
+
+        .route-group {
+            margin-bottom: 24px;
+        }
+
+        .route-group h3 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            padding: 10px 12px;
+            background-color: #e9f2ff;
+            border-left: 4px solid #007bff;
+            border-radius: 6px;
+            color: #333;
+        }
+
+        .route-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .route-item {
+            background-color: #fff;
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 2px solid #d0d7e2;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .route-item:hover {
+            background-color: #e6f0ff;
+        }
+
+        .route-item.selected {
+            background-color: #007bff;
+            color: white;
+            border-color: #005dc0;
+        }
+
+        #toggleDrawerBtn {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            left: 368px;
+            z-index: 1004;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 0 4px 4px 0;
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: left 0.3s ease;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        #toggleDrawerBtn:hover {
+            background-color: #005dc0;
+        }
+
+        #toggleDrawerBtn.collapsed {
+            left: 0;
+        }
+
+        #paymentMethod {
+            margin-top: 24px;
+        }
+
+        #paymentMethod h3 {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            padding: 10px 12px;
+            background-color: #e9f2ff;
+            border-left: 4px solid #007bff;
+            border-radius: 6px;
+            color: #333;
+        }
+
+        .payment-options {
+            display: flex;
+            gap: 12px;
+            padding: 0 8px 8px 8px;
+        }
+
+        .payment-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background-color: #fff;
+            border: 2px solid #d0d7e2;
+            border-radius: 8px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            flex: 1;
+            transition: border-color 0.3s, background-color 0.3s;
+            user-select: none;
+            position: relative;
+        }
+
+        .payment-option img {
+            width: 20px;
+            height: 20px;
+        }
+
+        .payment-option input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .payment-option input[type="radio"]:checked~img {
+            filter: drop-shadow(0 0 3px #007bff);
+        }
+
+        .payment-option input[type="radio"]:checked~span {
+            color: #007bff;
+            font-weight: 700;
+        }
+
+        .payment-option:hover,
+        .payment-option input[type="radio"]:checked~span {
+            border-color: #007bff;
+            background-color: #e6f0ff;
+        }
+
+        /* Divider below metro routes */
+        #metroRoutes {
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 16px;
+            margin-bottom: 24px;
+        }
+    </style>
+
+
+
+
+</head>
+
+<body>
+
+    <div id="routeDrawer">
+        <h2>Select Route</h2>
+        <div id="busRoutes" class="route-group">
+            <h3><img src="https://img.icons8.com/ios-filled/24/bus.png" alt="Bus Icon" /> Bus Routes</h3>
+            <div class="route-list" id="busList"></div>
+        </div>
+        <div id="metroRoutes" class="route-group">
+            <h3><img src="https://img.icons8.com/ios-filled/24/train.png" alt="Metro Icon" /> Metro Routes</h3>
+            <div class="route-list" id="metroList"></div>
+        </div>
+        <!-- Divider line here -->
+        <hr class="section-divider" />
+
+        <div id="paymentMethod" class="route-group">
+            <h3><img src="https://img.icons8.com/ios-filled/24/money--v1.png" alt="Payment Icon" /> Payment Method</h3>
+            <div class="payment-options">
+                <label class="payment-option">
+                    <input type="radio" name="payment" value="cash" checked />
+                    <img src="https://img.icons8.com/ios-filled/24/cash.png" alt="Cash Icon" />
+                    <span>Cash</span>
+                </label>
+                <label class="payment-option">
+                    <input type="radio" name="payment" value="online" />
+                    <img src="https://img.icons8.com/ios-filled/24/007bff/wallet--v1.png" alt="Online Payment Icon" />
+                    <span>Online</span>
+                </label>
+            </div>
+        </div>
+        <button class="book-btn" onclick="Start_trip()">Book Trip</button>
+
+
+    </div>
+
+    <div id="mapContainer">
+        <div id="map"></div>
+    </div>
+
+
+    <button id="toggleDrawerBtn">&#8249;</button>
+
+    <script>
+        let routeMarkers = [];
+        let mapInstance = null;
+        let routeLayers = [];
+        let routeLabels = [];
+        let routeInfoList = [];
+        let data;
+
+        async function drawMapWithRoutes() {
+            const routeDataJSON = sessionStorage.getItem("routeData");
+            if (!routeDataJSON) {
+                alert("No route data found. Please go back and try again.");
+                return;
+            }
+
+            data = JSON.parse(routeDataJSON);
+            console.log(data);
+
+            if (!data.success || !data.routes || data.routes.length === 0) {
+                alert("No routes found.");
+                return;
+            }
+
+            document.getElementById("mapContainer").style.display = "flex";
+
+            // Cleanup old layers and map
+            if (mapInstance) {
+                mapInstance.remove();
+                mapInstance = null;
+            }
+            routeLayers.forEach(layer => layer.remove());
+            routeLabels.forEach(label => label.remove());
+            routeLayers = [];
+            routeLabels = [];
+            routeInfoList = [];
+            routeMarkers = [];
+
+            document.getElementById("busList").innerHTML = "";
+            document.getElementById("metroList").innerHTML = "";
+
+            // Initialize map
+            const firstStop = data.routes[0].stops[0];
+            mapInstance = L.map("map").setView([firstStop.latitude, firstStop.longitude], 13);
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                attribution: "© OpenStreetMap contributors",
+            }).addTo(mapInstance);
+
+            const colors = ["blue", "green", "red", "purple", "orange", "teal"];
+            const summaryGroups = new Map();
+
+            // Group routes by summary key
+            for (let i = 0; i < data.routes.length; i++) {
+                const route = data.routes[i];
+                const stops = route.stops;
+                const busName = route.bus_company_name || "Unknown Bus";
+                const color = colors[i % colors.length];
+                const busCompanyType = route.bus_company_type;
+
+                // Markers per stop
+                const stopMarkers = [];
+                stops.forEach(stop => {
+                    const marker = L.marker([stop.latitude, stop.longitude])
+                        .addTo(mapInstance)
+                        .bindTooltip(stop.stop_name);
+                    stopMarkers.push(marker);
+                });
+                routeMarkers.push(stopMarkers);
+
+                // Prepare coords for ORS
+                const orsCoords = stops.map(stop => [stop.longitude, stop.latitude]);
+
+                try {
+                    const response = await axios.post("/api/proxy/ors", { coordinates: orsCoords });
+                    const geojson = response.data;
+
+                    const feature = geojson.features[0];
+                    const summary = feature.properties.summary;
+                    const key = `${summary.distance}-${summary.duration}`;
+                    const distanceInKm = (summary.distance / 1000).toFixed(2);
+
+                    if (!summaryGroups.has(key)) {
+                        summaryGroups.set(key, {
+                            geometry: feature.geometry,
+                            stops: stops,
+                            distance: distanceInKm,
+                            routeIds: [route.route_id],
+                            busNames: [busName],
+                            busCompanyTypes: [busCompanyType],
+                            color: color,
+                        });
+                    } else {
+                        const group = summaryGroups.get(key);
+                        group.busNames.push(busName);
+                        group.routeIds.push(route.route_id);
+                        group.busCompanyTypes.push(busCompanyType);
+                    }
+                } catch (err) {
+                    console.error("ORS proxy fetch failed:", err);
+                }
+            }
+
+            // Render grouped routes
+            let routeIndex = 0;
+            summaryGroups.forEach(group => {
+                const { geometry, distance, busNames, busCompanyTypes, color } = group;
+
+                // Draw route line
+                const routeLine = L.geoJSON(geometry, {
+                    style: {
+                        color: color,
+                        weight: 5,
+                        opacity: 1,
+                        className: 'route-line',
+                    }
+                }).addTo(mapInstance);
+                routeLine.bindPopup(`Route ${routeIndex + 1} - ${distance} km`);
+                routeLayers.push(routeLine);
+
+                // Label in middle of route
+                const midIndex = Math.floor(geometry.coordinates.length / 2);
+                const midCoord = geometry.coordinates[midIndex];
+                const midLatLng = [midCoord[1], midCoord[0]];
+                const labelMarker = L.marker(midLatLng, {
+                    icon: L.divIcon({
+                        className: "route-label",
+                        html: `<div style="background:${color}; color:#fff; padding:2px 6px; border-radius:4px; font-weight:bold;">Route ${routeIndex + 1}</div>`,
+                        iconSize: [60, 24],
+                        iconAnchor: [30, 12],
+                    }),
+                    interactive: false,
+                }).addTo(mapInstance);
+                routeLabels.push(labelMarker);
+
+                // Create route list item
+                const routeNameCombined = busNames.join(" , ");
+                const container = document.createElement("div");
+                container.className = "route-item";
+                container.dataset.index = routeIndex + 1;
+                container.innerHTML = `<span>${routeNameCombined} - ${distance} km</span>`;
+
+
+
+                // Fix: Use dataset index to determine selected route here
+                container.addEventListener("click", () => {
+                    // Remove previous selection
+                    document.querySelectorAll(".route-item").forEach(el => el.classList.remove("selected"));
+                    container.classList.add("selected");
+
+                    const selectedRoute = parseInt(container.dataset.index, 10);
+                    console.log("Selected route:", selectedRoute);
+
+                    // Update route line styles
+                    routeLayers.forEach((layer, idx) => {
+                        if (selectedRoute === idx + 1) {
+                            layer.setStyle({ opacity: 1, weight: 5 });
+                        } else {
+                            layer.setStyle({ opacity: 0.3, weight: 3 });
+                        }
+                    });
+
+                    // Update route labels opacity
+                    routeLabels.forEach((label, idx) => {
+                        const el = label.getElement();
+                        if (el) el.style.opacity = (selectedRoute === idx + 1) ? "1" : "0.3";
+                    });
+
+                    // Update marker opacity
+                    routeMarkers.forEach((markerGroup, idx) => {
+                        markerGroup.forEach(marker => {
+                            marker.setOpacity((selectedRoute === idx + 1) ? 1 : 0.3);
+                        });
+                    });
+                });
+
+                // Append to correct group
+                const isMRT = busCompanyTypes.includes("MRT");
+                if (isMRT) {
+                    document.getElementById("metroList").appendChild(container);
+                } else {
+                    document.getElementById("busList").appendChild(container);
+                }
+
+                routeInfoList.push({
+                    index: routeIndex + 1,
+                    busName: routeNameCombined,
+                    distance,
+                    routeIds: group.routeIds,
+                });
+
+                routeIndex++;
+            });
+        }
+
+        window.addEventListener("DOMContentLoaded", drawMapWithRoutes);
+
+        function Start_trip() {
+
+            // Get selected payment method
+            const selectedPaymentInput = document.querySelector('input[name="payment"]:checked');
+            if (!selectedPaymentInput) {
+                alert("Please select a payment method.");
+                return;
+            }
+            const selectedPaymentMethod = selectedPaymentInput.value;
+
+            // Store payment method in sessionStorage
+            sessionStorage.setItem("selectedPaymentMethod", selectedPaymentMethod);
+
+
+            const selectedElement = document.querySelector(".route-item.selected");
+            if (!selectedElement) {
+                alert("Please select a route before booking.");
+                return;
+            }
+            const selectedValue = selectedElement.dataset.index;
+
+            if (!selectedValue) {
+                alert("Please select a route before booking.");
+                return;
+            }
+
+            const selectedRouteInfo = routeInfoList.find(r => r.index === parseInt(selectedValue));
+            if (!selectedRouteInfo) {
+                alert("Selected route not found!");
+                return;
+            }
+
+            sessionStorage.setItem("selectedRouteInfo", JSON.stringify(selectedRouteInfo));
+            sessionStorage.setItem("routeGeojson", JSON.stringify(routeLayers[selectedValue - 1].toGeoJSON()));
+
+            const stops = routeInfoList.find(r => r.index === parseInt(selectedValue)).routeIds;
+            const selectedStops = data.routes.find(r => stops.includes(r.route_id)).stops;
+            sessionStorage.setItem("selectedRouteStops", JSON.stringify(selectedStops));
+
+            window.open("/trip_started");
+        }
+
+        document.getElementById("toggleDrawerBtn").addEventListener("click", () => {
+            const drawer = document.getElementById("routeDrawer");
+            const toggleBtn = document.getElementById("toggleDrawerBtn");
+
+            drawer.classList.toggle("collapsed");
+            toggleBtn.classList.toggle("collapsed");
+
+            // Change the button arrow
+            if (drawer.classList.contains("collapsed")) {
+                toggleBtn.innerHTML = "&#8250;"; // ›
+            } else {
+                toggleBtn.innerHTML = "&#8249;"; // ‹
+            }
+        });
+
+    </script>
+
+</body>
+
+
+
+</html>

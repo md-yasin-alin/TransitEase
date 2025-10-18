@@ -296,6 +296,160 @@
   <div id="map"></div>
 
   <script>
+<<<<<<< HEAD
+=======
+    function resetScanner() {
+      const resultElem = document.getElementById("result");
+      resultElem.innerHTML = ""; // Clear results
+
+      // Remove old scanner instance if exists
+      if (scanner) {
+        scanner.clear().catch(() => { }); // clear scanner if active
+      }
+
+      const container = document.getElementById("qrScannerContent");
+      // Remove old reader div if exists
+      const oldReader = document.getElementById("reader");
+      if (oldReader) oldReader.remove();
+
+      // Create reader div again
+      const readerDiv = document.createElement("div");
+      readerDiv.id = "reader";
+      readerDiv.style.width = "300px";
+      readerDiv.style.margin = "0 auto";
+      container.prepend(readerDiv);
+
+      // Restart scanner
+      scanner = new Html5QrcodeScanner("reader", {
+        qrbox: { width: 250, height: 250 },
+        fps: 20,
+      });
+
+      scanner.render(onScanSuccess, onScanError);
+    }
+
+
+    function toggleQRPanel() {
+      const panel = document.getElementById("qrPanel");
+      const toggleBtn = document.getElementById("qrToggleBtn");
+
+      if (panel.classList.contains("visible")) {
+        panel.classList.remove("visible");
+        toggleBtn.style.display = "block"; // Show the button again
+        document.getElementById("qrScannerContent").innerHTML = "";
+      } else {
+        panel.classList.add("visible");
+        toggleBtn.style.display = "none"; // Hide the button when panel is open
+        startScanner();
+      }
+    }
+
+
+    async function onScanSuccess(decodedText) {
+  const [tripIdStr, userIdStr] = decodedText.split(" ");
+  const tripId = parseInt(tripIdStr, 10);
+  const userId = parseInt(userIdStr, 10);
+
+  if (isNaN(tripId) || isNaN(userId)) {
+    document.getElementById("result").innerHTML = `<p class="error">Invalid QR code data.</p>`;
+    scanner.clear();
+    return;
+  }
+
+  if (!navigator.geolocation) {
+    document.getElementById("result").innerHTML = `<p class="error">Geolocation not supported.</p>`;
+    scanner.clear();
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(async (pos) => {
+    const userLat = pos.coords.latitude;
+    const userLng = pos.coords.longitude;
+
+    try {
+      // ✅ Check closest stop
+      const res = await fetch("/api/closest_stop", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat: userLat, lng: userLng }),
+      });
+
+      const data = await res.json();
+      if (!data.stop) {
+        document.getElementById("result").innerHTML = `<p class="error">No nearby stop found.</p>`;
+        scanner.clear();
+        return;
+      }
+
+      const { stop_name, distance } = data.stop;
+      const distanceInMeters = distance * 1000;
+
+      // ✅ Check if within 100m of stop
+      if (distanceInMeters > 100) {
+        document.getElementById("result").innerHTML = `
+          <div class="error">
+            <p>❌ Scan Rejected</p>
+            <p>Not near a valid bus stop.</p>
+            <p>Closest: <strong>${stop_name} Bus Stop</strong></p>
+            <p>Distance: ${distanceInMeters.toFixed(1)} meters</p>
+            <button class="close-btn" onclick="resetScanner()">Close</button>
+          </div>`;
+        scanner.clear();
+        return;
+      }
+
+      // ✅ Log entry or exit (keep existing logic)
+      const logRes = await fetch("/api/qrscan/log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tripId, userId }),
+      });
+      const logData = await logRes.json();
+
+      if (logData.status === "blocked") {
+        document.getElementById("result").innerHTML = `
+          <div class="error">
+            <h2>🚫 Trip Already Completed</h2>
+            <button class="close-btn" onclick="resetScanner()">Close</button>
+          </div>`;
+      } else if (logData.status === "entry_logged") {
+        document.getElementById("result").innerHTML = `
+          <div class="success">
+            <h2>✅ Entry Registered</h2>
+            <p>Trip started at <strong>${stop_name}</strong></p>
+            <button class="close-btn" onclick="resetScanner()">Close</button>
+          </div>`;
+      } else if (logData.status === "exit_logged") {
+        document.getElementById("result").innerHTML = `
+          <div class="success">
+            <h2>✅ Exit Registered</h2>
+            <p>Trip ended at <strong>${stop_name}</strong></p>
+            <button class="close-btn" onclick="resetScanner()">Close</button>
+          </div>`;
+      } else {
+        document.getElementById("result").innerHTML = `<p class="error">Unknown server response.</p>`;
+      }
+
+    } catch (err) {
+      console.error(err);
+      document.getElementById("result").innerHTML = `<p class="error">Error during scan process.</p>`;
+    }
+
+    scanner.clear();
+    document.getElementById("reader")?.remove();
+
+  }, () => {
+    document.getElementById("result").innerHTML = `<p class="error">Failed to get location.</p>`;
+    scanner.clear();
+  });
+}
+
+
+    function onScanError(err) {
+      console.warn("QR Scan error:", err);
+    }
+
+>>>>>>> 12fe64c (My commits)
     // Start QR scanner inside qrScannerContent
     let scanner = null;
     function startScanner() {
@@ -318,6 +472,7 @@
 
 
     }
+<<<<<<< HEAD
     async function loadRouteMap() {
       try {
         const defaultLatLng = [23.8103, 90.4125]; // Dhaka default
@@ -327,11 +482,61 @@
        
 
         const map = L.map("map").setView(defaultLatLng, 13);
+=======
+
+
+
+    async function loadCompanyName() {
+      try {
+        const res = await fetch("/api/transport/profile");
+        const data = await res.json();
+        if (data && data.company_id) {
+          document.getElementById("companyName").textContent = data.company_name || "Unnamed Company";
+        } else {
+          document.getElementById("companyName").textContent = "Company Not Found";
+        }
+      } catch (err) {
+        console.error("Failed to load company name:", err);
+        document.getElementById("companyName").textContent = "Error loading company";
+      }
+    }
+
+
+    document.getElementById("qrToggleBtn").addEventListener("click", () => {
+      toggleQRPanel();
+    });
+
+
+    async function loadRouteMap() {
+      try {
+        const res = await fetch("/api/bus/route_stops", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        const data = await res.json();
+        if (!data.stops || data.stops.length < 2) return;
+
+        const coords = data.stops.map(stop => [stop.longitude, stop.latitude]);
+
+        const orsRes = await axios.post("/api/proxy/ors", { coordinates: coords });
+        const routeGeoJson = orsRes.data;
+
+        const map = L.map("map").setView([data.stops[0].latitude, data.stops[0].longitude], 13);
+>>>>>>> 12fe64c (My commits)
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
           maxZoom: 18,
         }).addTo(map);
 
+<<<<<<< HEAD
         
+=======
+        data.stops.forEach(stop => {
+          L.marker([stop.latitude, stop.longitude])
+            .addTo(map)
+            .bindPopup(`<b>${stop.stop_name}</b>`);
+        });
+>>>>>>> 12fe64c (My commits)
 
         L.geoJSON(routeGeoJson, {
           style: {
@@ -341,14 +546,66 @@
           }
         }).addTo(map);
 
+<<<<<<< HEAD
         
+=======
+        const bounds = L.latLngBounds(data.stops.map(s => [s.latitude, s.longitude]));
+        map.fitBounds(bounds);
+>>>>>>> 12fe64c (My commits)
 
       } catch (err) {
         console.error("Failed to load route map:", err);
       }
     }
+<<<<<<< HEAD
      window.onload = async () => {
       loadRouteMap();
+=======
+
+    function togglePanel() {
+      const panel = document.getElementById("side-panel");
+      if (panel.classList.contains("visible")) {
+        panel.classList.remove("visible");
+      } else {
+        panel.classList.add("visible");
+      }
+    }
+
+
+    function toggleDetail(type) {
+      const details = document.getElementById(`${type}-details`);
+      details.classList.toggle("expanded");
+    }
+
+    async function loadIncomeSummary() {
+      try {
+        const res = await fetch("/api/transport/income/today"); // adjust route
+        const data = await res.json();
+        console.log(data);
+
+        const { total, cash, online, cashDetails, onlineDetails } = data;
+        console.log(total);
+
+        document.getElementById("total-income").textContent = `৳${total}`;
+        document.getElementById("cash-income").textContent = `৳${cash}`;
+        document.getElementById("online-income").textContent = `৳${online}`;
+
+        const cashDetailsElem = document.getElementById("cash-details");
+        const onlineDetailsElem = document.getElementById("online-details");
+
+        cashDetailsElem.innerHTML = cashDetails.map(c => `<p>Trip ${c.trip_id}: ৳${c.amount}</p>`).join('');
+        onlineDetailsElem.innerHTML = onlineDetails.map(c => `<p>Trip ${c.trip_id}: ৳${c.amount}</p>`).join('');
+      } catch (err) {
+        console.error("Failed to load income:", err);
+      }
+    }
+
+    // Load income summary on page load
+    window.onload = async () => {
+      await loadCompanyName();
+      loadRouteMap();
+      loadIncomeSummary();
+>>>>>>> 12fe64c (My commits)
     };
 
   </script>

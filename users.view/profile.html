@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartFare - Smart Bus & Metro Ticketing</title>
+
+  <!-- Tailwind CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    #map {
+      height: 20rem;
+      width: 90%;
+      margin: auto;
+      border-radius: 0.5rem;
+    }
+  </style>
+</head>
+
+<body class="bg-white text-gray-900">
+  <!-- Navigation Bar -->
+  <header class="bg-gray-800 text-white">
+    <div class="max-w-7xl mx-auto flex justify-between items-center p-4">
+      <div class="flex items-center space-x-8">
+        <h1 class="text-2xl font-bold">TransitEase</h1>
+        <nav class="space-x-6">
+          <!-- <a href="/transport/register" class="hover:underline">Drive</a>
+          <a href="#business" class="hover:underline">Business</a> -->
+          <!-- <a href="#about" class="hover:underline">About</a> -->
+        </nav>
+      </div>
+      <nav class="space-x-6">
+        <button id="logoutBtn" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center space-x-2">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+          </svg>
+          <span>Logout</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero/Main Section -->
+  <section class="py-12 bg-gray-100">
+    <div class="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+      <!-- Left Side -->
+      <div>
+        <h2 class="text-3xl font-bold mb-4">Travel across the city with Transit Ease</h2>
+        <div class="flex space-x-6 mb-4">
+          <div class="flex items-center space-x-2">
+            <img src="https://img.icons8.com/ios-filled/50/bus.png" class="w-6 h-6" alt="Bus Icon" />
+            <span>Bus</span>
+          </div>
+          <div class="flex items-center space-x-2">
+            <img src="https://img.icons8.com/ios-filled/50/train.png" class="w-6 h-6" alt="Metro Icon" />
+            <span>Metro</span>
+          </div>
+        </div>
+        <div class="space-y-4">
+          <input id="pickup" type="text" placeholder="Current Location" class="w-full p-3 border border-gray-300 rounded"
+            readonly />
+          
+          <!-- Prominent Closest Stop Button -->
+          <button id="getClosestStopBtn" class="w-full bg-green-600 hover:bg-green-700 text-white py-4 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center space-x-3 shadow-lg hover:shadow-xl">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+            </svg>
+            <span class="text-lg font-semibold">Find Nearest Bus Stop</span>
+          </button>
+          
+          <input id="dropoff" type="text" placeholder="Nearest stop will appear here"
+            class="w-full p-3 border border-gray-300 rounded bg-gray-50" readonly />
+          <button id="seeSuggestions" class="w-full bg-blue-600 text-white py-3 rounded hover:bg-blue-700">Where
+            to?</button>
+        </div>
+      </div>
+
+      <!-- Right Side Map -->
+      <div>
+        <div class="bg-white shadow rounded-lg overflow-hidden">
+          <div id="map" class="bg-gray-200"></div>
+        </div>
+        <div class="mt-6 bg-gray-50 p-4 rounded shadow">
+          <h4 class="text-xl font-semibold mb-2">Suggested Routes</h4>
+          <p class="text-gray-700">Route: Banani ↔ Farmgate</p>
+          <p class="text-gray-700">Transport: Green Line Bus</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-gray-800 text-white py-6 mt-10">
+    <div class="max-w-7xl mx-auto px-4 text-center">
+      <p>&copy; 2025 SmartFare. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Map Script with Location and Closest Stop -->
+  <script>
+    document.addEventListener("DOMContentLoaded", function () {
+      const pickupInput = document.getElementById("pickup");
+      const dropoffInput = document.getElementById("dropoff");
+      const seeBtn = document.getElementById("seeSuggestions");
+
+      const map = L.map("map").setView([23.8103, 90.4125], 13);
+      let userMarker = null;
+      let routeLine = null;
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '© OpenStreetMap contributors'
+      }).addTo(map);
+
+      function drawRouteToStop(stopLat, stopLng) {
+        const userLatLng = userMarker.getLatLng();
+        const coords = [[userLatLng.lng, userLatLng.lat], [stopLng, stopLat]];
+
+        fetch('/api/proxy/ors', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ coordinates: coords })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (routeLine) map.removeLayer(routeLine);
+            routeLine = L.geoJSON(data, {
+              style: {
+                color: 'blue',
+                weight: 4,
+                dashArray: '5, 10'
+              }
+            }).addTo(map);
+          })
+          .catch(err => console.error("ORS error:", err));
+      }
+
+      function getClosestStop(lat, lng) {
+        fetch('/api/closest_stop', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lat, lng })
+        })
+          .then(res => res.json())
+          .then(data => {
+            if (data.stop) {
+              dropoffInput.value = data.stop.stop_name + " Bus Stop";
+              const stopLat = data.stop.latitude;
+              const stopLng = data.stop.longitude;
+
+              L.marker([stopLat, stopLng])
+                .addTo(map)
+                .bindPopup("Closest Stop: " + data.stop.stop_name + " Bus Stop")
+                .openPopup();
+
+              drawRouteToStop(stopLat, stopLng);
+            } else {
+              dropoffInput.value = "No nearby stop found";
+            }
+          })
+          .catch(err => console.error("Closest stop error:", err));
+      }
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          function (pos) {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+
+            map.setView([lat, lng], 15);
+            userMarker = L.marker([lat, lng]).addTo(map).bindPopup("You are here").openPopup();
+
+            // Reverse Geocode for Address
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+              .then(res => res.json())
+              .then(data => {
+                const address = data.display_name || `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+                pickupInput.value = address;
+              })
+              .catch(err => {
+                console.error("Reverse geocoding failed:", err);
+                pickupInput.value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+              });
+
+            // Add click event to the prominent closest stop button
+            const getClosestStopBtn = document.getElementById("getClosestStopBtn");
+            getClosestStopBtn.addEventListener("click", () => {
+              getClosestStop(lat, lng);
+            });
+          },
+          function () {
+            alert("Could not fetch your location");
+          }
+        );
+      }
+      else {
+        alert("Geolocation not supported by your browser.");
+      }
+
+      seeBtn.addEventListener("click", () => {
+        window.location.href = "/select_trip";
+      });
+
+      // Logout functionality
+      const logoutBtn = document.getElementById("logoutBtn");
+      logoutBtn.addEventListener("click", () => {
+        if (confirm("Are you sure you want to logout?")) {
+          window.location.href = "/logout";
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>
