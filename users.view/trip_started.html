@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Your Trip - Transit Ease</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+    <!-- Inline CSS and JavaScript have been trimmed to maintain a manageable preview -->
+    <style>
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            width: 100vw;
+            font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #ffffff;
+            color: #333;
+            overflow: hidden;
+        }
+
+        #mapContainer {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .leaflet-interactive.route-line {
+            transition: opacity 0.4s ease;
+        }
+
+        #routeInfoBox {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: #f1fdf3;
+            color: green;
+            font-weight: bold;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 15px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        /* ===== Purple Pulse Animation for Nearby Stops ===== */
+        .pulse-icon-wrapper {
+            position: relative;
+            width: 30px;
+            height: 30px;
+        }
+
+        .pulse-circle {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 30px;
+            height: 30px;
+            background: rgba(128, 0, 128, 0.4);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: pulse 1.5s ease-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: translate(-50%, -50%) scale(0.9);
+                opacity: 1;
+            }
+
+            100% {
+                transform: translate(-50%, -50%) scale(2.2);
+                opacity: 0;
+            }
+        }
+
+        /* ==== QR Toggle Panel (Top-Left) ==== */
+        #qrPanel {
+            position: fixed;
+            top: 43px;
+            left: -270px;
+            width: 250px;
+            background-color: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            transition: left 0.4s ease;
+            z-index: 1001;
+            padding: 15px;
+        }
+
+        #qrPanel.open {
+            left: 20px;
+        }
+
+        #qrToggleBtn {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 1002;
+            background-color: #4a4aff;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 45px;
+            height: 45px;
+            cursor: pointer;
+            font-size: 20px;
+            font-weight: bold;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+            transition: background-color 0.3s ease;
+        }
+
+        #qrToggleBtn:hover {
+            background-color: #3737cc;
+        }
+
+        #qrImage {
+            width: 100%;
+            height: auto;
+            display: none;
+            margin-top: 10px;
+        }
+
+        #qrText {
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            margin-top: 10px;
+            font-weight: bold;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        #qrText.show {
+            opacity: 1;
+            display: block;
+        }
+
+        /* ==== Simulation Control Buttons (Bottom Right) ==== */
+        button[onclick="simulateVirtualTracking()"],
+        button[onclick="endTripManually()"] {
+            position: fixed;
+            right: 20px;
+            z-index: 1001;
+            padding: 10px 15px;
+            background-color: #4a4aff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        button[onclick="simulateVirtualTracking()"] {
+            bottom: 80px;
+        }
+
+        button[onclick="endTripManually()"] {
+            bottom: 20px;
+        }
+
+        /* === Trip End Sliding Panel === */
+        #tripEndPanel {
+            position: fixed;
+            bottom: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #f0f9ff;
+            border: 2px solid #4a4aff;
+            border-radius: 10px;
+            padding: 20px;
+            width: 320px;
+            z-index: 1003;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+            text-align: center;
+            transition: bottom 0.4s ease;
+        }
+
+        #tripEndPanel.show {
+            bottom: 100px;
+        }
+
+        #tripEndMessage {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 15px;
+        }
+
+        #tripEndOkBtn {
+            background-color: #4a4aff;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #tripEndOkBtn:hover {
+            background-color: #3737cc;
+        }
+
+        #endQRPanel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #f5f5ff;
+            border: 2px solid #4a4aff;
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+            display: none;
+            /* 🔒 Keep hidden by default */
+            z-index: 2000;
+            text-align: center;
+
+            /* Flex layout only applies when made visible */
+            flex-direction: column;
+            align-items: center;
+            gap: 16px;
+        }
+
+
+
+
+
+
+        #endQRPanel p {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        #endQRImage {
+            width: 180px;
+            height: auto;
+            margin-bottom: 15px;
+        }
+
+        #endQRBtn {
+            background-color: #4a4aff;
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #endQRBtn:hover {
+            background-color: #3737cc;
+        }
+
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 100vw;
+            background: rgba(0, 0, 0, 0.75);
+            /* semi-transparent black */
+            z-index: 1999;
+            /* Just behind the QR panel (which is z-index: 2000) */
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Trip End QR Panel (Shown only for cash) -->
+    <div id="overlay"></div>
+    <div id="endQRPanel">
+        <p>Scan this QR to end your trip</p>
+        <img id="endQRImage" src="" alt="End Trip QR Code" />
+        <button id="endQRBtn">Done</button>
+    </div>
+
+
+
+    <!-- HTML content for UI panels and map -->
+    <button id="qrToggleBtn" onclick="toggleQRPanel()">☰</button>
+    <div id="qrPanel">
+        <img id="qrImage" src="" />
+        <p id="qrText">Please scan this QR code to start your journey</p>
+    </div>
+    <div id="tripEndPanel">
+        <div id="tripEndContent">
+            <p id="tripEndMessage">Trip ended!</p>
+            <button id="tripEndOkBtn">OK</button>
+        </div>
+    </div>
+    <button onclick="simulateVirtualTracking()">Start your Trip</button>
+    <button onclick="endTripManually()">End Trip</button>
+    <div id="mapContainer">
+        <div id="map">
+            <div id="routeInfoBox">
+                <span id="selectedRouteText">Loading route...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inline JavaScript logic -->
+    <script>
+        function showEndQRPanel() {
+            const panel = document.getElementById("endQRPanel");
+            const qrImage = document.getElementById("endQRImage");
+            const overlay = document.getElementById("overlay");
+
+            qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${data.tripId}+${data.userId}`;
+            panel.style.display = "flex";
+            overlay.style.display = "block"; // ✅ Show the dimmed background
+
+            document.getElementById("endQRBtn").onclick = () => {
+                panel.style.display = "none";
+                overlay.style.display = "none"; // ✅ Hide the dimmed background
+                window.location.href = `/select_trip`;
+            };
+        }
+
+
+        let source;
+        let destination;
+
+        const paymentMethod = sessionStorage.getItem("selectedPaymentMethod");
+        console.log("Payment method:", paymentMethod); // "cash" or "online"
+
+        let data;
+        let info;
+
+        function toggleQRPanel() {
+            const panel = document.getElementById("qrPanel");
+            panel.classList.toggle("open");
+        }
+
+        let mapInstance = null;
+        let routeLayer = null;
+        let markers = [];
+        let greyLine = null;
+        let liveMarker = null;
+        let fullORSLine = null;
+
+        // Animated purple circle icon
+        const animatedDivIcon = L.divIcon({
+            className: '',
+            html: `
+        <div class="pulse-icon-wrapper">
+            <div class="pulse-circle"></div>
+        </div>
+    `,
+            iconSize: [30, 30],
+            iconAnchor: [15, 15]
+        });
+
+        window.addEventListener("DOMContentLoaded", () => {
+            const selectedRouteInfoJSON = sessionStorage.getItem("selectedRouteInfo");
+            const routeGeojsonJSON = sessionStorage.getItem("routeGeojson");
+            const stopsJSON = sessionStorage.getItem("selectedRouteStops");
+
+            if (!selectedRouteInfoJSON || !routeGeojsonJSON || !stopsJSON) {
+                alert("No route selected or route data missing.");
+                return;
+            }
+
+            const selectedRouteInfo = JSON.parse(selectedRouteInfoJSON);
+            console.log(selectedRouteInfo);
+            info = selectedRouteInfo;
+            const routeGeojson = JSON.parse(routeGeojsonJSON);
+            const stops = JSON.parse(stopsJSON);
+            const idx = stops.length - 1;
+            source = stops[0].stop_name;
+            destination = stops[idx].stop_name;
+            console.log(stops[0].stop_name, stops[idx].stop_name);
+
+            if (routeGeojson.features && routeGeojson.features.length > 0) {
+                fullORSLine = routeGeojson.features[0].geometry;
+            } else if (routeGeojson.geometry) {
+                fullORSLine = routeGeojson.geometry;
+            } else {
+                alert("Invalid route GeoJSON data!");
+                return;
+            }
+
+            document.getElementById("mapContainer").style.display = "flex";
+
+            const firstStop = stops[0];
+            mapInstance = L.map("map").setView([
+                firstStop.latitude || firstStop.lat,
+                firstStop.longitude || firstStop.lng
+            ], 13);
+
+            L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+                attribution: "© OpenStreetMap contributors",
+            }).addTo(mapInstance);
+
+            mapInstance.zoomControl.setPosition("bottomleft");
+
+            mapInstance.on('click', function (e) {
+                console.log('Clicked location:', e.latlng.lat, e.latlng.lng);
+            });
+
+            routeLayer = L.geoJSON(routeGeojson, {
+                style: {
+                    color: "blue",
+                    weight: 5,
+                    opacity: 1,
+                }
+            }).addTo(mapInstance);
+
+            stops.forEach(stop => {
+                const marker = L.marker([
+                    stop.latitude || stop.lat,
+                    stop.longitude || stop.lng
+                ])
+                    .addTo(mapInstance)
+                    .bindTooltip(stop.stop_name || stop.name || "Stop");
+                markers.push(marker);
+            });
+
+            const routeText = `Route - ${selectedRouteInfo.index} - ${selectedRouteInfo.busName} - ${selectedRouteInfo.distance} km`;
+            document.getElementById("selectedRouteText").textContent = routeText;
+
+            generateQR().then(() => {
+                document.getElementById("qrPanel").classList.add("open");
+            });
+
+            const estimatedFare = (parseFloat(selectedRouteInfo.distance) * 10).toFixed(2);
+            const message = `
+        <b>Trip Info</b><br>
+        From: ${stops[0].stop_name || "N/A"}<br>
+        To: ${stops[idx].stop_name || "N/A"}<br>
+        Distance: ${selectedRouteInfo.distance} km<br>
+        Estimated Fare: ৳${estimatedFare}
+    `;
+
+            showTripEndPanel(message, null, false); // not a real trip end
+
+
+            startLiveTracking();
+        });
+
+        async function generateQR() {
+            try {
+                const res = await fetch("/api/book_trip/generate_qr", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        paymentType: paymentMethod,
+                        source: source,
+                        destination: destination
+                    })
+                });
+
+                data = await res.json();
+                console.log(data);
+                if (data.success) {
+                    const qrImage = document.getElementById("qrImage");
+                    const qrText = document.getElementById("qrText");
+                    qrImage.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${data.tripId}+${data.userId}`;
+
+                    sessionStorage.setItem('tripQRCode', qrImage.src);
+
+                    qrImage.style.display = "block";
+                    qrText.style.display = "block";
+                    qrText.classList.add("show");
+                } else {
+                    alert("Failed to book trip.");
+                }
+            } catch (err) {
+                console.error("Error booking trip", err);
+                alert("Server error!");
+            }
+        }
+
+        const clickedCoords = [
+            [23.79737664979128, 90.42368431279517],
+            [23.79698398317786, 90.42377016095129],
+            [23.796669849032664, 90.42377016095129],
+            [23.79627718028312, 90.42381308502934],
+            [23.79596304442904, 90.42385600910738],
+            [23.795413304856904, 90.42402770541959],
+            [23.79513843419862, 90.42402770541959],
+            [23.79482429559144, 90.42411355357568],
+            [23.794627958576292, 90.42415647765375],
+            [23.79431381873499, 90.4242423258099],
+            [23.793999678134252, 90.42428524988794],
+            [23.79352846580918, 90.4244140221221],
+            [23.792860912090344, 90.4244998702782],
+            [23.792271891255357, 90.4244998702782],
+            [23.79195774571837, 90.42471449066845],
+            [23.791407989201396, 90.42480033882457],
+            [23.790858230358815, 90.42484326290261],
+            [23.789915781218237, 90.42501495921483],
+            [23.78916967080186, 90.42518665552704],
+            [23.788423556102437, 90.42518665552704],
+            [23.7879130541035, 90.4254012759173],
+            [23.785517594870544, 90.42583097085615],
+            [23.785046351792527, 90.42574512270006],
+            [23.78433948397254, 90.42574512270006],
+            [23.783043549653595, 90.42583097085615],
+            [23.780805087222106, 90.42565927454395],
+            [23.78001965267424, 90.42565927454395],
+            [23.779862565195327, 90.4254446541537],
+            [23.780137468158877, 90.4254446541537],
+            [23.78037309880791, 90.42540173007565],
+            [23.780490913972297, 90.42484371706098],
+            [23.780490913972297, 90.4244574003585],
+            [23.780530185670038, 90.42377061510963],
+            [23.78056945735591, 90.42312675393886],
+            [23.78064800069209, 90.42256874092418],
+            [23.78064800069209, 90.42213950014367],
+            [23.780530185670038, 90.42119517042647],
+            [23.780530185670038, 90.42050838517764],
+            [23.78064800069209, 90.41990744808491],
+            [23.780255283536768, 90.41866264982136],
+            [23.780255283536768, 90.41780416826033],
+            [23.780176739963366, 90.415915508826],
+            [23.780176739963366, 90.41531457173328],
+            [23.780176739963366, 90.4144560901722],
+            [23.780137468158877, 90.41389807715751],
+            [23.780137468158877, 90.41308251967453],
+            [23.780137468158877, 90.4120952658793],
+            [23.780058924514318, 90.41110801208411],
+            [23.780058924514318, 90.41029245460109],
+            [23.780058924514318, 90.40964859343029],
+            [23.780058924514318, 90.4086613396351],
+            [23.780137468158877, 90.40788870623012],
+            [23.780176739963366, 90.40733069321546],
+            [23.780294555305677, 90.40617174310806],
+            [23.78041237054123, 90.40522741339086],
+            [23.780490913972297, 90.40462647629815],
+            [23.780451642262687, 90.40325290580044],
+            [23.780687272342377, 90.40243734831745],
+            [23.78072654398082, 90.40136424636611],
+            [23.780844358824965, 90.40067746111728],
+            [23.78072654398082, 90.39874587760491],
+            [23.780451642262687, 90.39874587760491],
+            [23.779862565195327, 90.39857418129269],
+            [23.77911639707896, 90.39848833313657],
+            [23.778605858532305, 90.39827371274632],
+            [23.778095317981244, 90.39805909235606],
+            [23.778095317981244, 90.39745815526335],
+            [23.777898955697122, 90.39702891448277],
+            [23.777859683204714, 90.39681429409252],
+            [23.777192049019256, 90.39651382554615],
+            [23.77707423086601, 90.39617043292174],
+            [23.77695641260605, 90.39591288845344],
+            [23.776445865579404, 90.39518317912655],
+            [23.775974589622034, 90.3942817734874],
+            [23.77577822413577, 90.39363791231663],
+            [23.775660404701703, 90.39325159561417],
+            [23.775503311956907, 90.39230726589699],
+            [23.775424765513364, 90.39101954355543],
+            [23.77385382668073, 90.39028983422851],
+            [23.773068350149178, 90.39028983422851],
+            [23.772165046273948, 90.39028983422851],
+            [23.771615206061277, 90.39016106199436],
+            [23.770476243941747, 90.38990351752602],
+            [23.769847846779545, 90.38977474529187],
+            [23.76929799677262, 90.38956012490162],
+            [23.768119738932278, 90.3888733396528],
+
+        ];
+
+
+        let stopAlertShown = false; // To avoid repeated alerts
+        let finalDestAlertShown = false;
+        let stopPulseMarker = null; // Marker with animated icon
+        let traveledDistance = 0;       // ➤ Will accumulate travelled km
+        let tripEnded = false;          // ➤ Used to stop the simulation
+        let currentIndex = 0;           // ➤ Track current clickedCoords index
+
+        function simulateVirtualTracking() {
+            console.log("Live tracking()");
+            if (!clickedCoords || clickedCoords.length === 0) {
+                alert("No coordinates available for simulation.");
+                return;
+            }
+
+            let index = 0;
+
+            // Cleanup previous runs
+            if (greyLine) {
+                mapInstance.removeLayer(greyLine);
+                greyLine = null;
+            }
+            if (liveMarker) {
+                mapInstance.removeLayer(liveMarker);
+                liveMarker = null;
+            }
+            if (stopPulseMarker) {
+                mapInstance.removeLayer(stopPulseMarker);
+                stopPulseMarker = null;
+            }
+
+            const routeLine = turf.lineString(fullORSLine.coordinates);
+            const totalDistance = turf.length(routeLine, { units: "kilometers" });
+
+            function moveMarker() {
+                console.log("Move marker()");
+                if (index >= clickedCoords.length) {
+                    alert("Simulation complete!");
+                    return;
+                }
+
+                const [lat, lng] = clickedCoords[index];
+                const userPoint = turf.point([lng, lat]);
+                const snapped = turf.nearestPointOnLine(routeLine, userPoint);
+                const snappedIndex = snapped.properties.index;
+
+                const travelledCoords = fullORSLine.coordinates.slice(0, snappedIndex + 1);
+                const travelledLine = turf.lineString(travelledCoords);
+
+                if (greyLine) mapInstance.removeLayer(greyLine);
+                greyLine = L.geoJSON(travelledLine, { style: { color: "gray", weight: 5 } }).addTo(mapInstance);
+
+                const snappedLatLng = [snapped.geometry.coordinates[1], snapped.geometry.coordinates[0]];
+
+                if (!liveMarker) {
+                    liveMarker = L.marker(snappedLatLng, {
+                        icon: L.icon({
+                            iconUrl: "https://cdn-icons-png.flaticon.com/512/149/149059.png",
+                            iconSize: [30, 30],
+                            iconAnchor: [15, 30],
+                        }),
+                    }).addTo(mapInstance);
+                } else {
+                    liveMarker.setLatLng(snappedLatLng);
+                }
+
+                // Distance calculations
+                traveledDistance = turf.length(travelledLine, { units: "kilometers" });
+                const remainingDistance = Math.max(totalDistance - traveledDistance, 0).toFixed(3);
+
+                // Update distance on UI
+                const routeTextElem = document.getElementById("selectedRouteText");
+                const currentText = routeTextElem.textContent;
+                const updatedText = currentText.replace(/[\d.]+\s?km$/, `${remainingDistance} km`);
+                routeTextElem.textContent = updatedText;
+
+                let nearStop = null;
+                for (const stop of markers) {
+                    const dist = mapInstance.distance(liveMarker.getLatLng(), stop.getLatLng());
+                    if (dist <= 300) {
+                        nearStop = stop;
+                        break;
+                    }
+                }
+
+                if (nearStop && !stopAlertShown) {
+                    stopAlertShown = true;
+
+                    liveMarker.bindPopup(`Approaching stop: <b>${nearStop.getTooltip().getContent()}</b>`).openPopup();
+
+                    // Add animated icon marker
+                    if (stopPulseMarker) {
+                        mapInstance.removeLayer(stopPulseMarker);
+                        stopPulseMarker = null;
+                    }
+
+                    stopPulseMarker = L.marker(nearStop.getLatLng(), {
+                        icon: animatedDivIcon
+                    }).addTo(mapInstance);
+
+                } else if (!nearStop) {
+                    stopAlertShown = false;
+
+                    if (stopPulseMarker) {
+                        mapInstance.removeLayer(stopPulseMarker);
+                        stopPulseMarker = null;
+                    }
+
+                    liveMarker.closePopup();
+                }
+
+                // ---- Final destination check ----
+                if (remainingDistance < 0.3 && !finalDestAlertShown) {
+                    finalDestAlertShown = true;
+                    // alert("You are almost at your destination!");
+                    liveMarker.bindPopup("You are almost at your destination!").openPopup();
+                    showTripEndPanel("You are almost at your destination!", null);
+                }
+
+                mapInstance.panTo(snappedLatLng);
+
+                currentIndex = index;  // 🔁 Keeps track for manual trip end
+                index++;
+                // ✅ Check if we should end the trip now
+                if (index >= clickedCoords.length || tripEnded) {
+                    console.log("Here 1");
+                    if (!tripEnded) {
+                        console.log("Here 2");
+                        console.log(info);
+                        tripEnded = true;
+                        const finalFare = (parseFloat(info.distance) * 10).toFixed(2);
+                        console.log(finalFare);
+                        // alert(`Trip ended automatically at destination.\nDistance: ${info.distance} km\nFare: ৳${finalFare}`);
+                        // window.location.href = `/payment?fare=${finalFare}`;
+                        const message = `Trip ended automatically at destination.<br>Distance: ${info.distance} km<br>Fare: ৳${finalFare}`;
+                        insertFareAndRedirect(finalFare);
+
+                        // showTripEndPanel(message, `/payment?fare=${finalFare}`);
+                        // showTripEndPanel(message, `/payment?fare=${finalFare}&tripId=${data.tripId}`);
+                        if (paymentMethod === "online") {
+                            showTripEndPanel(message, `/payment?fare=${finalFare}&tripId=${data.tripId}`, true);
+
+                        } else {
+                            // For cash – show QR again and redirect only after user clicks
+                            showTripEndPanel(message);
+                            showTripEndPanel(message, null, true);  // real trip end
+                            // 👇 new function
+                        }
+
+                    }
+                    return;
+                }
+                setTimeout(moveMarker, 200);
+            }
+
+            moveMarker();
+        }
+
+        async function endTripManually() {
+            if (tripEnded || currentIndex >= clickedCoords.length) return;
+
+            const currentLatLng = liveMarker.getLatLng();
+            let nearestStop = null;
+            let nearestDist = Infinity;
+
+            for (const stop of markers) {
+                const stopLatLng = stop.getLatLng();
+                const dist = mapInstance.distance(currentLatLng, stopLatLng);
+                const latDiff = stopLatLng.lat - currentLatLng.lat;
+
+                if (dist < nearestDist && latDiff > -0.0001) {  // ahead
+                    nearestStop = stop;
+                    nearestDist = dist;
+                }
+            }
+
+            if (!nearestStop) {
+                alert("No upcoming stop found to end trip.");
+                return;
+            }
+
+            // Get distance from current location to that stop, along ORS route
+            const routeLine = turf.lineString(fullORSLine.coordinates);
+            const startPoint = turf.point([currentLatLng.lng, currentLatLng.lat]);
+            const endPoint = turf.point([nearestStop.getLatLng().lng, nearestStop.getLatLng().lat]);
+
+            const startSnap = turf.nearestPointOnLine(routeLine, startPoint);
+            const endSnap = turf.nearestPointOnLine(routeLine, endPoint);
+
+            const startIndex = startSnap.properties.index;
+            const endIndex = endSnap.properties.index;
+
+            const remainingCoords = fullORSLine.coordinates.slice(startIndex, endIndex + 1);
+            const remainingLine = turf.lineString(remainingCoords);
+            const remainingDistance = turf.length(remainingLine, { units: "kilometers" });
+
+            const totalFinalDistance = traveledDistance + remainingDistance;
+            const finalFare = (totalFinalDistance * 10).toFixed(2);
+
+            // Cleanup
+            tripEnded = true;
+            if (stopPulseMarker) {
+                mapInstance.removeLayer(stopPulseMarker);
+                stopPulseMarker = null;
+            }
+
+            const message = `Manual End Trip.<br>Next Stop: ${nearestStop.getTooltip().getContent()}<br>Total Distance: ${totalFinalDistance.toFixed(2)} km<br>Fare: ৳${finalFare}`;
+            const stopName = nearestStop.getTooltip().getContent();
+            insertFareAndRedirect(finalFare, stopName);
+
+            // showTripEndPanel(message, `/payment?fare=${finalFare}`);
+            // showTripEndPanel(message, `/payment?fare=${finalFare}&tripId=${data.tripId}`);
+            if (paymentMethod === "online") {
+                showTripEndPanel(message, `/payment?fare=${finalFare}&tripId=${data.tripId}`, true);
+
+            } else {
+                // For cash – show QR again and redirect only after user clicks
+                showTripEndPanel(message);
+                showTripEndPanel(message, null, true);  // real trip end
+                // 👇 new function
+            }
+
+        }
+
+        function showTripEndPanel(message, redirectUrl = null, isActualTripEnd = false) {
+            const panel = document.getElementById("tripEndPanel");
+            const msgElem = document.getElementById("tripEndMessage");
+            const okBtn = document.getElementById("tripEndOkBtn");
+
+            msgElem.innerHTML = message;
+            panel.classList.add("show");
+
+            okBtn.onclick = () => {
+                panel.classList.remove("show");
+
+                // ✅ Show QR only if it's a real trip end and payment is cash
+                if (paymentMethod === "cash" && !redirectUrl && isActualTripEnd) {
+                    showEndQRPanel();
+                }
+
+                if (redirectUrl) {
+                    setTimeout(() => {
+                        window.location.href = redirectUrl;
+                    }, 300);
+                }
+            };
+        }
+
+
+        async function insertFareAndRedirect(fare, destination) {
+            try {
+                const response = await fetch("/api/trip/update_fare", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        tripId: data.tripId,
+                        fare: fare,
+                        destination: destination  // 🆕
+                    })
+                });
+
+                const result = await response.json();
+                console.log(result);
+                if (!result.success) {
+                    alert("Failed to update trip data");
+                    return;
+                }
+
+            } catch (error) {
+                console.error("Error updating trip:", error);
+                alert("Server error while updating trip.");
+            }
+        }
+
+        // Live tracking simulation and related logic continues...
+        // (Remaining code is unchanged — to continue with simulateVirtualTracking, endTripManually, showTripEndPanel, insertFareAndRedirect, etc.)
+
+        // All your JavaScript is copied as-is
+        // Includes setup, QR generation, live tracking, simulation, fare update, and UI toggling
+        // If you'd like a cleaned or modularized version for better maintenance, I can help with that too
+    </script>
+</body>
+
+</html>
